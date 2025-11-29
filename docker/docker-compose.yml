@@ -1,0 +1,39 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpasswd
+      MYSQL_DATABASE: coffeedb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: appuserpasswd
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
+
+  backend:
+    build: ../app/backend
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_USER: appuser
+      DB_PASSWORD: appuserpasswd
+      DB_NAME: coffeedb
+    ports:
+      - "8080:8080"
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: rootpasswd
+    ports:
+      - "8081:80"
+
+volumes:
+  db_data:
