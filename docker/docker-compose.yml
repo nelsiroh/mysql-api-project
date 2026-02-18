@@ -17,11 +17,20 @@ services:
     build: ../app/backend
     depends_on:
       - db
+      - datadog
     environment:
       DB_HOST: db
+      DB_PORT: 3306
       DB_USER: appuser
       DB_PASSWORD: appuserpasswd
       DB_NAME: coffeedb
+
+      DD_AGENT_HOST: datadog
+      DD_HOSTNAME: datadog-host
+      DD_TRACE_AGENT_PORT: 8126
+      DD_SERVICE: coffee-api
+      DD_ENV: local
+      DD_VERSION: dev
     ports:
       - "8080:8080"
 
@@ -34,6 +43,22 @@ services:
       PMA_PASSWORD: rootpasswd
     ports:
       - "8081:80"
+
+  datadog:
+    image: datadog/agent:latest
+    environment:
+      DD_API_KEY: ${DD_API_KEY}
+      DD_SITE: us5.datadoghq.com
+      DD_APM_ENABLED: "true"
+      DD_LOGS_ENABLED: "false"
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+    ports:
+      - "8126:8126"
+
 
 volumes:
   db_data:

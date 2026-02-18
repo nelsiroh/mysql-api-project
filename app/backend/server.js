@@ -1,9 +1,20 @@
+import tracer from 'dd-trace';
+
+tracer.init({
+  service: process.env.DD_SERVICE || 'coffee-api',
+  env: process.env.DD_ENV || 'local',
+  version: process.env.DD_VERSION || 'dev',
+  logInjection: true,
+});
+
 import express from 'express';
 import pool from './db.js';
+import crypto from 'crypto';
 
 const app = express();
 app.use(express.json());
 
+// GET health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
@@ -32,6 +43,18 @@ app.get('/users', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// POST coffee transaction
+app.post('/order', async (req, res) =>
+  {
+    try {
+
+    }
+    catch (err) {
+      
+    }
+  }
+);
 
 const port = process.env.PORT || 8080;
 app.listen(port, () => console.log(`API running on port ${port}`));
