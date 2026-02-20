@@ -26,11 +26,27 @@ This service simulates a production-style commerce backend:
 
 ## Architecture Overview
 
-Load Generator (Locust) │ ▼ Express API (Node.js) - Transaction
-control - Validation layer - State transitions - dd-trace
-instrumentation │ ▼ MySQL (InnoDB) - ACID transactions - Foreign keys -
-Snapshot pricing │ ▼ Datadog Agent (APM) - HTTP traces - DB spans -
-Latency percentiles - Error analysis
+Load Generator (Locust)
+        │
+        ▼
+Express API (Node.js)
+  - Transaction control
+  - Validation layer
+  - State transitions
+  - dd-trace instrumentation
+        │
+        ▼
+MySQL (InnoDB)
+  - ACID transactions
+  - Foreign keys
+  - Snapshot pricing
+        │
+        ▼
+Datadog Agent (APM)
+  - HTTP traces
+  - DB spans
+  - Latency percentiles
+  - Error analysis
 
 ------------------------------------------------------------------------
 
