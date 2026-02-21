@@ -26,6 +26,7 @@ This service simulates a production-style commerce backend:
 
 ## Architecture Overview
 
+```text
 Load Generator (Locust)
         │
         ▼
@@ -47,6 +48,7 @@ Datadog Agent (APM)
   - DB spans
   - Latency percentiles
   - Error analysis
+```
 
 ------------------------------------------------------------------------
 
