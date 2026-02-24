@@ -177,7 +177,6 @@ htmlcov/
 # -----------------------------
 # Database
 # -----------------------------
-*.sql
 *.dump
 *.bak
 *.sqlite
@@ -186,11 +185,16 @@ htmlcov/
 # -----------------------------
 # Database
 # -----------------------------
-*.sql
 *.dump
 *.bak
 *.sqlite
 *.db
+
+# -----------------------------
+# Ignore database dumps in docker init folder
+# -----------------------------
+docker/mysql/init/*dump*.sql
+docker/mysql/init/coffeedb_dump.sql
 
 # -----------------------------
 # Docker
