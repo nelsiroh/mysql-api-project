@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   db:
     image: mysql:8.0
@@ -17,7 +19,7 @@ services:
     build: ../app/backend
     depends_on:
       - db
-      - datadog
+      - otel-collector
     environment:
       DB_HOST: db
       DB_PORT: 3306
@@ -25,12 +27,14 @@ services:
       DB_PASSWORD: appuserpasswd
       DB_NAME: coffeedb
 
-      DD_AGENT_HOST: datadog
-      DD_HOSTNAME: datadog-host
-      DD_TRACE_AGENT_PORT: 8126
-      DD_SERVICE: coffee-api
-      DD_ENV: local
-      DD_VERSION: dev
+      # OpenTelemetry
+      OTEL_SERVICE_NAME: coffee-api
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
+      DEPLOY_ENV: local
+      SERVICE_VERSION: dev
     ports:
       - "8080:8080"
 
@@ -44,21 +48,56 @@ services:
     ports:
       - "8081:80"
 
-  datadog:
-    image: datadog/agent:latest
-    environment:
-      DD_API_KEY: ${DD_API_KEY}
-      DD_SITE: us5.datadoghq.com
-      DD_APM_ENABLED: "false"
-      DD_LOGS_ENABLED: "false"
-      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /proc/:/host/proc/:ro
-      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+      - ./otel/config.yaml:/etc/otelcol/config.yaml:ro
     ports:
-      - "8126:8126"
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8889:8889"   # Prometheus exporter endpoint (scraped by Prometheus)
+    depends_on:
+      - tempo
+      - prometheus
+      - loki
 
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo.yaml:ro
+    ports:
+      - "3200:3200"   # Tempo HTTP (query)
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  loki:
+    image: grafana/loki:latest
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - tempo
+      - prometheus
+      - loki
 
 volumes:
   db_data:
+    name: mysql_api_project_db_data
+  grafana_data:
+    name: mysql_api_project_grafana_data
