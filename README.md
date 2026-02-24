@@ -8,7 +8,7 @@ A transactional order service built with **Node.js (Express)** and
 **Datadog APM**, now refactored to a **Grafana + OpenTelemetry (LGTM)
 observability stack**.
 
-------------------------------------------------------------------------
+---
 
 ## Executive Summary
 
@@ -27,11 +27,11 @@ The system was initially validated using **Datadog APM** and is now
 being migrated to an **OpenTelemetry-based LGTM stack (Loki, Grafana,
 Tempo, Prometheus)** for vendor-neutral observability.
 
-------------------------------------------------------------------------
+---
 
 ## Observability Evolution
 
-### Phase 1 --- Datadog APM (Completed)
+### Phase 1 -- Datadog APM
 
 -   HTTP request tracing via `dd-trace`
 -   MySQL query spans
@@ -73,6 +73,7 @@ Datadog Agent
 ```
 
 ```mermaid
+%%{init: {'theme':'default','themeVariables':{'fontSize':'16px'}}}%%
 flowchart TD
 subgraph P1["Phase 1 — Datadog Validation (Completed)"]
   L1["Load Generator (Locust)"] --> A1["Express API (Node.js)<br/>- Transaction control<br/>- Validation layer<br/>- State transitions<br/>- dd-trace instrumentation"]
@@ -81,7 +82,7 @@ subgraph P1["Phase 1 — Datadog Validation (Completed)"]
 end
 ```
 
-### Phase 2 --- LGTM Stack
+### Phase 2 -- LGTM Stack
 
 Refactoring to:
 
@@ -150,6 +151,7 @@ Datadog Agent (APM)
 ```
 
 ```mermaid
+%%{init: {'theme':'default','themeVariables':{'fontSize':'16px'}}}%%
 flowchart TD
 subgraph P2["Phase 2 — LGTM Stack (Current Direction)"]
   L2["Load Generator (Locust)"] --> A2["Express API (Node.js)<br/>- Transaction control<br/>- Validation layer<br/>- State transitions<br/>- OpenTelemetry SDK instrumentation"]
@@ -181,7 +183,7 @@ end
 -   Line total preserved
 -   Referential integrity to `orders`
 
-------------------------------------------------------------------------
+---
 
 ## Order Lifecycle
 
@@ -191,7 +193,7 @@ PENDING → PAID → FULFILLED → REFUNDED\
 Load tests simulate probabilistic lifecycle transitions to reflect
 real-world commerce behavior.
 
-------------------------------------------------------------------------
+---
 
 ## API Surface
 
@@ -203,7 +205,7 @@ real-world commerce behavior.
   POST     /order              Create transactional order
   PATCH    /order/:id/status   Update order state
 
-------------------------------------------------------------------------
+---
 
 ## Transaction Design
 
@@ -219,7 +221,7 @@ Order creation executes inside a database transaction:
 
 This ensures atomicity, consistency, and monetary integrity.
 
-------------------------------------------------------------------------
+---
 
 ## Load Testing
 
@@ -239,7 +241,7 @@ Where:
 -   `-r` = ramp rate\
 -   `-t` = duration
 
-------------------------------------------------------------------------
+---
 
 ## Sample Test Outcome (Datadog Phase)
 
@@ -249,7 +251,7 @@ Where:
 -   Stable P95 latency under 100 concurrent users
 -   Clean rollback behavior on validation failures
 
-------------------------------------------------------------------------
+---
 
 ## Local Development
 
@@ -265,7 +267,7 @@ Grafana:
 
     http://localhost:3001
 
-------------------------------------------------------------------------
+---
 
 ## Storage Management During Load Testing
 
@@ -286,4 +288,10 @@ Or reset container + volume:
 
     docker compose down -v
 
+---
 
+MIT License
+
+Copyright (c) 2025 Eric Nelson
+
+v2.3
