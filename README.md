@@ -126,6 +126,27 @@ OpenTelemetry Collector (OTLP)
                 │  
                 ▼  
               Grafana (Unified Visualization)
+Load Generator (Locust)
+        │
+        ▼
+Express API (Node.js)
+  - Transaction control
+  - Validation layer
+  - State transitions
+  - dd-trace instrumentation
+        │
+        ▼
+MySQL (InnoDB)
+  - ACID transactions
+  - Foreign keys
+  - Snapshot pricing
+        │
+        ▼
+Datadog Agent (APM)
+  - HTTP traces
+  - DB spans
+  - Latency percentiles
+  - Error analysis
 ```
 
 ------------------------------------------------------------------------
