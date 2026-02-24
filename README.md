@@ -150,22 +150,22 @@ Datadog Agent (APM)
 
 ------------------------------------------------------------------------
 
-flowchart TD
+### Phase 1 - DataDog O11y Stack
 ```mermaid
+flowchart TD
 subgraph P1["Phase 1 — Datadog Validation (Completed)"]
-  L1["Load Generator (Locust)"] --> A1["Express API (Node.js)\n- Transaction control\n- Validation layer\n- State transitions\n- dd-trace instrumentation"]
-  A1 --> D1["MySQL (InnoDB)\n- ACID transactions\n- Foreign keys\n- Snapshot pricing"]
-  D1 --> G1["Datadog Agent\n- HTTP traces\n- DB spans\n- Latency percentiles\n- Error analysis"]
+  L1["Load Generator (Locust)"] --> A1["Express API (Node.js)<br/>- Transaction control<br/>- Validation layer<br/>- State transitions<br/>- dd-trace instrumentation"]
+  A1 --> D1["MySQL (InnoDB)<br/>- ACID transactions<br/>- Foreign keys<br/>- Snapshot pricing"]
+  D1 --> G1["Datadog Agent<br/>- HTTP traces<br/>- DB spans<br/>- Latency percentiles<br/>- Error analysis"]
 end
 ```
-flowchart TD
+
+### Phase 2 - LGTM Stack
 ```mermaid
-%% -----------------------------
-%% Phase 2 — LGTM Stack
-%% -----------------------------
+flowchart TD
 subgraph P2["Phase 2 — LGTM Stack (Current Direction)"]
-  L2["Load Generator (Locust)"] --> A2["Express API (Node.js)\n- Transaction control\n- Validation layer\n- State transitions\n- OpenTelemetry SDK instrumentation"]
-  A2 --> D2["MySQL (InnoDB)\n- ACID transactions\n- Foreign keys\n- Snapshot pricing"]
+  L2["Load Generator (Locust)"] --> A2["Express API (Node.js)<br/>- Transaction control<br/>- Validation layer<br/>- State transitions<br/>- OpenTelemetry SDK instrumentation"]
+  A2 --> D2["MySQL (InnoDB)<br/>- ACID transactions<br/>- Foreign keys<br/>- Snapshot pricing"]
   D2 --> C2["OpenTelemetry Collector (OTLP)"]
   C2 --> T2["Tempo (Distributed Traces)"]
   C2 --> M2["Prometheus (Metrics)"]
