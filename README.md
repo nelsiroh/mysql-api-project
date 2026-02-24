@@ -4,8 +4,9 @@
 Modeling**
 
 A transactional order service built with **Node.js (Express)** and
-**MySQL**, instrumented with **Datadog APM**, and validated under
-synthetic load using **Locust**.
+**MySQL**, validated under synthetic load, and instrumented first with
+**Datadog APM**, now refactored to a **Grafana + OpenTelemetry (LGTM)
+observability stack**.
 
 ------------------------------------------------------------------------
 
@@ -19,36 +20,141 @@ This service simulates a production-style commerce backend:
 -   Order line item snapshots (`order_items`)
 -   Stateful order lifecycle transitions
 -   Transactional integrity with rollback protection
--   Distributed tracing via Datadog
+-   Distributed tracing
 -   Load validation via Locust
+
+The system was initially validated using **Datadog APM** and is now
+being migrated to an **OpenTelemetry-based LGTM stack (Loki, Grafana,
+Tempo, Prometheus)** for vendor-neutral observability.
+
+------------------------------------------------------------------------
+
+## Observability Evolution
+
+### Phase 1 --- Datadog APM (Completed)
+
+-   HTTP request tracing via `dd-trace`
+-   MySQL query spans
+-   Transaction latency breakdown
+-   P95 / P99 latency analysis
+-   Error rate visibility
+-   Load validation under 100+ concurrent users
+
+This phase confirmed:
+
+-   Stable transactional behavior
+-   No 500-level failures under synthetic load
+-   Clean rollback handling
+-   Deterministic lifecycle transitions
+
+### Phase 2 --- LGTM Stack (In Progress)
+
+Refactoring to:
+
+-   **OpenTelemetry SDK (Node)**
+-   **OpenTelemetry Collector**
+-   **Tempo** (distributed tracing backend)
+-   **Prometheus** (metrics)
+-   **Loki** (logs)
+-   **Grafana** (visualization layer)
+
+Goals of this pivot:
+
+-   Vendor-neutral instrumentation
+-   Standards-based telemetry (OTLP)
+-   Self-hosted observability stack
+-   Explicit control over trace/metric/log pipelines
+-   Demonstration of modern cloud-native observability architecture
 
 ------------------------------------------------------------------------
 
 ## Architecture Overview
 
-Load Generator (Locust)
-        │
-        ▼
-Express API (Node.js)
-  - Transaction control
-  - Validation layer
-  - State transitions
-  - dd-trace instrumentation
-        │
-        ▼
-MySQL (InnoDB)
-  - ACID transactions
-  - Foreign keys
-  - Snapshot pricing
-        │
-        ▼
-Datadog Agent (APM)
-  - HTTP traces
-  - DB spans
-  - Latency percentiles
-  - Error analysis
+```text
+## Architecture Overview
+
+### Phase 1 — Datadog Validation (Completed)
+
+Load Generator (Locust)  
+        │  
+        ▼  
+Express API (Node.js)  
+  - Transaction control  
+  - Validation layer  
+  - State transitions  
+  - `dd-trace` instrumentation  
+        │  
+        ▼  
+MySQL (InnoDB)  
+  - ACID transactions  
+  - Foreign keys  
+  - Snapshot pricing  
+        │  
+        ▼  
+Datadog Agent  
+  - HTTP traces  
+  - Database spans  
+  - Latency percentiles  
+  - Error analysis  
+
+
+---
+
+### Phase 2 — LGTM Stack (Current Direction)
+
+Load Generator (Locust)  
+        │  
+        ▼  
+Express API (Node.js)  
+  - Transaction control  
+  - Validation layer  
+  - State transitions  
+  - OpenTelemetry SDK instrumentation  
+        │  
+        ▼  
+MySQL (InnoDB)  
+  - ACID transactions  
+  - Foreign keys  
+  - Snapshot pricing  
+        │  
+        ▼  
+OpenTelemetry Collector (OTLP)  
+        │  
+        ├── Tempo (Distributed Traces)  
+        ├── Prometheus (Metrics)  
+        └── Loki (Logs)  
+                │  
+                ▼  
+              Grafana (Unified Visualization)
+```
 
 ------------------------------------------------------------------------
+
+```mermaid
+subgraph P1["Phase 1 — Datadog Validation (Completed)"]
+  L1["Load Generator (Locust)"] --> A1["Express API (Node.js)\n- Transaction control\n- Validation layer\n- State transitions\n- dd-trace instrumentation"]
+  A1 --> D1["MySQL (InnoDB)\n- ACID transactions\n- Foreign keys\n- Snapshot pricing"]
+  D1 --> G1["Datadog Agent\n- HTTP traces\n- DB spans\n- Latency percentiles\n- Error analysis"]
+end
+```
+
+```mermaid
+%% -----------------------------
+%% Phase 2 — LGTM Stack
+%% -----------------------------
+subgraph P2["Phase 2 — LGTM Stack (Current Direction)"]
+  L2["Load Generator (Locust)"] --> A2["Express API (Node.js)\n- Transaction control\n- Validation layer\n- State transitions\n- OpenTelemetry SDK instrumentation"]
+  A2 --> D2["MySQL (InnoDB)\n- ACID transactions\n- Foreign keys\n- Snapshot pricing"]
+  D2 --> C2["OpenTelemetry Collector (OTLP)"]
+  C2 --> T2["Tempo (Distributed Traces)"]
+  C2 --> M2["Prometheus (Metrics)"]
+  C2 --> K2["Loki (Logs)"]
+  T2 --> F2["Grafana (Unified Visualization)"]
+  M2 --> F2
+  K2 --> F2
+end
+```
+
 
 ## Core Domain Model
 
@@ -73,7 +179,7 @@ PENDING → PAID → FULFILLED → REFUNDED\
       ↘ CANCELLED
 
 Load tests simulate probabilistic lifecycle transitions to reflect
-real-world behavior.
+real-world commerce behavior.
 
 ------------------------------------------------------------------------
 
@@ -97,7 +203,7 @@ Order creation executes inside a database transaction:
 2.  Validate coffee exists + fetch price\
 3.  Compute totals\
 4.  Insert order\
-5.  Insert order item\
+5.  Insert order items\
 6.  Commit\
 7.  Rollback on any failure
 
@@ -105,64 +211,49 @@ This ensures atomicity, consistency, and monetary integrity.
 
 ------------------------------------------------------------------------
 
-## Observability
-
-Tracing is enabled using `dd-trace` prior to Express initialization to
-capture full request lifecycle telemetry.
-
-Captured metrics include:
-
--   HTTP latency per endpoint\
--   MySQL query timing\
--   Transaction duration\
--   Error rates\
--   P95 / P99 latency analysis\
--   Throughput under load
-
-------------------------------------------------------------------------
-
 ## Load Testing
 
 Load tests reside in:
 
-test/performance/locustfile.py
+    test/performance/locustfile.py
 
 Example headless run:
 
-python -m locust -f test/performance/locustfile.py --headless -u 100 -r
-10 -t 5m --host http://127.0.0.1:8080
+    python -m locust -f test/performance/locustfile.py \
+      --headless -u 100 -r 10 -t 5m \
+      --host http://127.0.0.1:8080
 
 Where:
 
--   -u = concurrent users\
--   -r = ramp rate\
--   -t = duration
+-   `-u` = concurrent users\
+-   `-r` = ramp rate\
+-   `-t` = duration
 
 ------------------------------------------------------------------------
 
-## Sample Local Test Outcome
+## Sample Test Outcome (Datadog Phase)
 
--   \~16,000 synthetic orders generated\
--   Multi-stage lifecycle updates\
--   Zero 500-level failures\
--   Stable P95 latency under 100 concurrent users\
+-   \~16,000 synthetic orders generated
+-   Multi-stage lifecycle updates
+-   Zero 500-level failures
+-   Stable P95 latency under 100 concurrent users
 -   Clean rollback behavior on validation failures
 
 ------------------------------------------------------------------------
 
 ## Local Development
 
-Start database:
+Start full stack (DB + API + LGTM stack):
 
-docker compose up -d
-
-Start API:
-
-node app/backend/server.js
+    docker compose up --build
 
 Health check:
 
-curl http://localhost:8080/health
+    curl http://localhost:8080/health
+
+Grafana:
+
+    http://localhost:3001
 
 ------------------------------------------------------------------------
 
@@ -171,36 +262,18 @@ curl http://localhost:8080/health
 Synthetic load generates:
 
 -   1 row in `orders`
--   1 row in `order_items`
+-   N rows in `order_items`
 -   Multiple status updates
 
 Reset test data:
 
-SET FOREIGN_KEY_CHECKS=0; TRUNCATE order_items; TRUNCATE orders; SET
-FOREIGN_KEY_CHECKS=1;
+    SET FOREIGN_KEY_CHECKS=0;
+    TRUNCATE order_items;
+    TRUNCATE orders;
+    SET FOREIGN_KEY_CHECKS=1;
 
-Or reset container:
+Or reset container + volume:
 
-docker compose down -v
+    docker compose down -v
 
-------------------------------------------------------------------------
 
-## What This Project Demonstrates
-
--   Transactionally correct backend architecture\
--   Realistic lifecycle modeling\
--   Write amplification analysis\
--   Performance instrumentation\
--   Controlled load experimentation\
--   Observability-driven development
-
-------------------------------------------------------------------------
-
-## Positioning
-
-This project serves as:
-
--   A performance engineering reference\
--   A transactional system design example\
--   A DevOps and observability showcase\
--   A portfolio artifact demonstrating backend rigor
