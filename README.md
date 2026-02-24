@@ -47,34 +47,8 @@ This phase confirmed:
 -   Clean rollback handling
 -   Deterministic lifecycle transitions
 
-### Phase 2 --- LGTM Stack (In Progress)
-
-Refactoring to:
-
--   **OpenTelemetry SDK (Node)**
--   **OpenTelemetry Collector**
--   **Tempo** (distributed tracing backend)
--   **Prometheus** (metrics)
--   **Loki** (logs)
--   **Grafana** (visualization layer)
-
-Goals of this pivot:
-
--   Vendor-neutral instrumentation
--   Standards-based telemetry (OTLP)
--   Self-hosted observability stack
--   Explicit control over trace/metric/log pipelines
--   Demonstration of modern cloud-native observability architecture
-
-------------------------------------------------------------------------
-
-## Architecture Overview
-
+### Phase 1 — Architecture
 ```text
-## Architecture Overview
-
-### Phase 1 — Datadog Validation (Completed)
-
 Load Generator (Locust)
         │
         ▼
@@ -96,11 +70,38 @@ Datadog Agent
   - Database spans
   - Latency percentiles
   - Error analysis
+```
 
----
+```mermaid
+flowchart TD
+subgraph P1["Phase 1 — Datadog Validation (Completed)"]
+  L1["Load Generator (Locust)"] --> A1["Express API (Node.js)<br/>- Transaction control<br/>- Validation layer<br/>- State transitions<br/>- dd-trace instrumentation"]
+  A1 --> D1["MySQL (InnoDB)<br/>- ACID transactions<br/>- Foreign keys<br/>- Snapshot pricing"]
+  D1 --> G1["Datadog Agent<br/>- HTTP traces<br/>- DB spans<br/>- Latency percentiles<br/>- Error analysis"]
+end
+```
 
-### Phase 2 — LGTM Stack (Current Direction)
+### Phase 2 --- LGTM Stack
 
+Refactoring to:
+
+-   **OpenTelemetry SDK (Node)**
+-   **OpenTelemetry Collector**
+-   **Tempo** (distributed tracing backend)
+-   **Prometheus** (metrics)
+-   **Loki** (logs)
+-   **Grafana** (visualization layer)
+
+Goals of this pivot:
+
+-   Vendor-neutral instrumentation
+-   Standards-based telemetry (OTLP)
+-   Self-hosted observability stack
+-   Explicit control over trace/metric/log pipelines
+-   Demonstration of modern cloud-native observability architecture
+
+### Phase 2 — LGTM Stack Architecture
+```text
 Load Generator (Locust)  
         │  
         ▼  
@@ -148,19 +149,6 @@ Datadog Agent (APM)
   - Error analysis
 ```
 
-------------------------------------------------------------------------
-
-### Phase 1 - DataDog O11y Stack
-```mermaid
-flowchart TD
-subgraph P1["Phase 1 — Datadog Validation (Completed)"]
-  L1["Load Generator (Locust)"] --> A1["Express API (Node.js)<br/>- Transaction control<br/>- Validation layer<br/>- State transitions<br/>- dd-trace instrumentation"]
-  A1 --> D1["MySQL (InnoDB)<br/>- ACID transactions<br/>- Foreign keys<br/>- Snapshot pricing"]
-  D1 --> G1["Datadog Agent<br/>- HTTP traces<br/>- DB spans<br/>- Latency percentiles<br/>- Error analysis"]
-end
-```
-
-### Phase 2 - LGTM Stack
 ```mermaid
 flowchart TD
 subgraph P2["Phase 2 — LGTM Stack (Current Direction)"]
@@ -176,6 +164,7 @@ subgraph P2["Phase 2 — LGTM Stack (Current Direction)"]
 end
 ```
 
+---
 
 ## Core Domain Model
 
