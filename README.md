@@ -75,28 +75,27 @@ Goals of this pivot:
 
 ### Phase 1 — Datadog Validation (Completed)
 
-Load Generator (Locust)  
-        │  
-        ▼  
-Express API (Node.js)  
-  - Transaction control  
-  - Validation layer  
-  - State transitions  
-  - `dd-trace` instrumentation  
-        │  
-        ▼  
-MySQL (InnoDB)  
-  - ACID transactions  
-  - Foreign keys  
-  - Snapshot pricing  
-        │  
-        ▼  
-Datadog Agent  
-  - HTTP traces  
-  - Database spans  
-  - Latency percentiles  
-  - Error analysis  
-
+Load Generator (Locust)
+        │
+        ▼
+Express API (Node.js)
+  - Transaction control
+  - Validation layer
+  - State transitions
+  - `dd-trace` instrumentation
+        │
+        ▼
+MySQL (InnoDB)
+  - ACID transactions
+  - Foreign keys
+  - Snapshot pricing
+        │
+        ▼
+Datadog Agent
+  - HTTP traces
+  - Database spans
+  - Latency percentiles
+  - Error analysis
 
 ---
 
@@ -151,6 +150,7 @@ Datadog Agent (APM)
 
 ------------------------------------------------------------------------
 
+flowchart TD
 ```mermaid
 subgraph P1["Phase 1 — Datadog Validation (Completed)"]
   L1["Load Generator (Locust)"] --> A1["Express API (Node.js)\n- Transaction control\n- Validation layer\n- State transitions\n- dd-trace instrumentation"]
@@ -158,7 +158,7 @@ subgraph P1["Phase 1 — Datadog Validation (Completed)"]
   D1 --> G1["Datadog Agent\n- HTTP traces\n- DB spans\n- Latency percentiles\n- Error analysis"]
 end
 ```
-
+flowchart TD
 ```mermaid
 %% -----------------------------
 %% Phase 2 — LGTM Stack
