@@ -73,13 +73,17 @@ Datadog Agent
 ```
 
 ```mermaid
-%%{init: {'theme':'default','themeVariables':{'fontSize':'16px'}}}%%
+%%{init: {'theme':'neutral','themeVariables':{'fontSize':'16px'}}}%%
 flowchart TD
-subgraph P1["Phase 1 — Datadog Validation (Completed)"]
-  L1["Load Generator (Locust)"] --> A1["Express API (Node.js)<br/>- Transaction control<br/>- Validation layer<br/>- State transitions<br/>- dd-trace instrumentation"]
-  A1 --> D1["MySQL (InnoDB)<br/>- ACID transactions<br/>- Foreign keys<br/>- Snapshot pricing"]
-  D1 --> G1["Datadog Agent<br/>- HTTP traces<br/>- DB spans<br/>- Latency percentiles<br/>- Error analysis"]
-end
+
+L["Load Generator (Locust)"]
+A["Express API (Node.js)<br/>(dd-trace)"]
+D["MySQL (InnoDB)"]
+G["Datadog Agent"]
+
+L --> A
+A --> D
+D --> G
 ```
 
 ### Phase 2 -- LGTM Stack
@@ -151,19 +155,29 @@ Datadog Agent (APM)
 ```
 
 ```mermaid
-%%{init: {'theme':'default','themeVariables':{'fontSize':'16px'}}}%%
+%%{init: {'theme':'neutral','themeVariables':{'fontSize':'16px'}}}%%
 flowchart TD
-subgraph P2["Phase 2 — LGTM Stack (Current Direction)"]
-  L2["Load Generator (Locust)"] --> A2["Express API (Node.js)<br/>- Transaction control<br/>- Validation layer<br/>- State transitions<br/>- OpenTelemetry SDK instrumentation"]
-  A2 --> D2["MySQL (InnoDB)<br/>- ACID transactions<br/>- Foreign keys<br/>- Snapshot pricing"]
-  D2 --> C2["OpenTelemetry Collector (OTLP)"]
-  C2 --> T2["Tempo (Distributed Traces)"]
-  C2 --> M2["Prometheus (Metrics)"]
-  C2 --> K2["Loki (Logs)"]
-  T2 --> F2["Grafana (Unified Visualization)"]
-  M2 --> F2
-  K2 --> F2
-end
+
+L["Load Generator (Locust)"]
+A["Express API (Node.js)<br/>(OpenTelemetry SDK)"]
+D["MySQL (InnoDB)"]
+C["OpenTelemetry Collector (OTLP)"]
+T["Tempo (Traces)"]
+M["Prometheus (Metrics)"]
+K["Loki (Logs)"]
+G["Grafana (Unified Visualization)"]
+
+L --> A
+A --> D
+D --> C
+
+C --> T
+C --> M
+C --> K
+
+T --> G
+M --> G
+K --> G
 ```
 
 ---
