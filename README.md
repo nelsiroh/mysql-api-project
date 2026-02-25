@@ -62,24 +62,6 @@ A --> D
 D --> G
 ```
 
-### Phase 1 scope
-Load Generator (Locust)
-  - Scalable load generation with ramp-up
-Express API (Node.js)
-  - Transaction control
-  - Validation layer
-  - State transitions
-  - `dd-trace` instrumentation
-MySQL (InnoDB)
-  - ACID transactions
-  - Foreign keys
-  - Snapshot pricing
-Datadog Agent
-  - HTTP traces
-  - Database spans
-  - Latency percentiles
-  - Error analysis
-
 ### Phase 2 -- LGTM Stack
 
 Refactoring to:
@@ -125,39 +107,6 @@ T --> G
 M --> G
 K --> G
 ```
-
-### Phase 2 scope
-Load Generator (Locust)
-  - Scalable load generation with ramp-up
-Express API (Node.js)
-  - Transaction control
-  - Validation layer
-  - State transitions
-  - OpenTelemetry SDK instrumentation
-MySQL (InnoDB)
-  - ACID transactions
-  - Foreign keys
-  - Snapshot pricing
-OpenTelemetry Collector (OTLP)
-        ├── Tempo (Distributed Traces)
-        ├── Prometheus (Metrics)
-        └── Loki (Logs)
-                   └── Grafana (Unified Visualization)
-Load Generator (Locust)
-Express API (Node.js)
-  - Transaction control
-  - Validation layer
-  - State transitions
-  - dd-trace instrumentation
-MySQL (InnoDB)
-  - ACID transactions
-  - Foreign keys
-  - Snapshot pricing
-Datadog Agent (APM)
-  - HTTP traces
-  - DB spans
-  - Latency percentiles
-  - Error analysis
 
 ---
 
@@ -287,4 +236,4 @@ MIT License
 
 Copyright (c) 2025 Eric Nelson
 
-v2.3
+v2.4
