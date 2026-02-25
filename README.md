@@ -48,30 +48,6 @@ This phase confirmed:
 -   Deterministic lifecycle transitions
 
 ### Phase 1 — Architecture
-```text
-Load Generator (Locust)
-        │
-        ▼
-Express API (Node.js)
-  - Transaction control
-  - Validation layer
-  - State transitions
-  - `dd-trace` instrumentation
-        │
-        ▼
-MySQL (InnoDB)
-  - ACID transactions
-  - Foreign keys
-  - Snapshot pricing
-        │
-        ▼
-Datadog Agent
-  - HTTP traces
-  - Database spans
-  - Latency percentiles
-  - Error analysis
-```
-
 ```mermaid
 %%{init: {'theme':'neutral','themeVariables':{'fontSize':'16px'}}}%%
 flowchart TD
@@ -85,6 +61,24 @@ L --> A
 A --> D
 D --> G
 ```
+
+### Phase 1 scope
+Load Generator (Locust)
+  - Scalable load generation with ramp-up
+Express API (Node.js)
+  - Transaction control
+  - Validation layer
+  - State transitions
+  - `dd-trace` instrumentation
+MySQL (InnoDB)
+  - ACID transactions
+  - Foreign keys
+  - Snapshot pricing
+Datadog Agent
+  - HTTP traces
+  - Database spans
+  - Latency percentiles
+  - Error analysis
 
 ### Phase 2 -- LGTM Stack
 
@@ -106,54 +100,6 @@ Goals of this pivot:
 -   Demonstration of modern cloud-native observability architecture
 
 ### Phase 2 — LGTM Stack Architecture
-```text
-Load Generator (Locust)  
-        │  
-        ▼  
-Express API (Node.js)  
-  - Transaction control  
-  - Validation layer  
-  - State transitions  
-  - OpenTelemetry SDK instrumentation  
-        │  
-        ▼  
-MySQL (InnoDB)  
-  - ACID transactions  
-  - Foreign keys  
-  - Snapshot pricing  
-        │  
-        ▼  
-OpenTelemetry Collector (OTLP)  
-        │  
-        ├── Tempo (Distributed Traces)  
-        ├── Prometheus (Metrics)  
-        └── Loki (Logs)  
-                │  
-                ▼  
-              Grafana (Unified Visualization)
-Load Generator (Locust)
-        │
-        ▼
-Express API (Node.js)
-  - Transaction control
-  - Validation layer
-  - State transitions
-  - dd-trace instrumentation
-        │
-        ▼
-MySQL (InnoDB)
-  - ACID transactions
-  - Foreign keys
-  - Snapshot pricing
-        │
-        ▼
-Datadog Agent (APM)
-  - HTTP traces
-  - DB spans
-  - Latency percentiles
-  - Error analysis
-```
-
 ```mermaid
 %%{init: {'theme':'neutral','themeVariables':{'fontSize':'16px'}}}%%
 flowchart TD
@@ -179,6 +125,39 @@ T --> G
 M --> G
 K --> G
 ```
+
+### Phase 2 scope
+Load Generator (Locust)
+  - Scalable load generation with ramp-up
+Express API (Node.js)
+  - Transaction control
+  - Validation layer
+  - State transitions
+  - OpenTelemetry SDK instrumentation
+MySQL (InnoDB)
+  - ACID transactions
+  - Foreign keys
+  - Snapshot pricing
+OpenTelemetry Collector (OTLP)
+        ├── Tempo (Distributed Traces)
+        ├── Prometheus (Metrics)
+        └── Loki (Logs)
+                   └── Grafana (Unified Visualization)
+Load Generator (Locust)
+Express API (Node.js)
+  - Transaction control
+  - Validation layer
+  - State transitions
+  - dd-trace instrumentation
+MySQL (InnoDB)
+  - ACID transactions
+  - Foreign keys
+  - Snapshot pricing
+Datadog Agent (APM)
+  - HTTP traces
+  - DB spans
+  - Latency percentiles
+  - Error analysis
 
 ---
 
