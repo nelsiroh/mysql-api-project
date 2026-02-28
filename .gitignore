@@ -178,14 +178,7 @@ htmlcov/
 # Database
 # -----------------------------
 *.dump
-*.bak
-*.sqlite
-*.db
-
-# -----------------------------
-# Database
-# -----------------------------
-*.dump
+!app/backend/dumps/coffeedb-mysql-lgtm.dump
 *.bak
 *.sqlite
 *.db
