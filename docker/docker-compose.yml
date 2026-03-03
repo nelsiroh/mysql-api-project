@@ -1,8 +1,6 @@
-version: "3.9"
-
 services:
   db:
-    image: mysql:8.0
+    image: mysql:8.4.8
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: rootpasswd
@@ -13,13 +11,20 @@ services:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
-      - ./mysql/init:/docker-entrypoint-initdb.d
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpasswd"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   backend:
     build: ../app/backend
     depends_on:
-      - db
-      - otel-collector
+      db:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 3306
@@ -27,7 +32,7 @@ services:
       DB_PASSWORD: appuserpasswd
       DB_NAME: coffeedb
 
-      # OpenTelemetry
+      # OpenTelemetry (OTLP over HTTP/protobuf)
       OTEL_SERVICE_NAME: coffee-api
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
@@ -41,33 +46,42 @@ services:
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     restart: always
+    # platform: linux/amd64
     environment:
       PMA_HOST: db
       PMA_USER: root
       PMA_PASSWORD: rootpasswd
     ports:
       - "8081:80"
+    depends_on:
+      db:
+        condition: service_healthy
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    command: ["--config=/etc/otelcol/config.yaml"]
+    command: ["--config=/etc/otelcol/config.yml"]
     volumes:
-      - ./otel/config.yaml:/etc/otelcol/config.yaml:ro
+      - ./otel/config.yml:/etc/otelcol/config.yml:ro
+      - otel_data:/var/lib/otelcol
     ports:
-      - "4318:4318"   # OTLP HTTP receiver
-      - "8889:8889"   # Prometheus exporter endpoint (scraped by Prometheus)
+      - "4318:4318"
+      - "8889:8889"
     depends_on:
-      - tempo
-      - prometheus
-      - loki
+      tempo:
+        condition: service_started
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
 
   tempo:
     image: grafana/tempo:latest
-    command: ["-config.file=/etc/tempo.yaml"]
+    command: ["-config.file=/etc/tempo.yml"]
     volumes:
-      - ./tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - ./tempo/tempo.yml:/etc/tempo.yml:ro
+      - tempo_data:/tmp/tempo
     ports:
-      - "3200:3200"   # Tempo HTTP (query)
+      - "3200:3200"
 
   prometheus:
     image: prom/prometheus:latest
@@ -78,7 +92,10 @@ services:
 
   loki:
     image: grafana/loki:latest
-    command: ["-config.file=/etc/loki/local-config.yaml"]
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/tmp/loki
     ports:
       - "3100:3100"
 
@@ -92,12 +109,21 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
     depends_on:
-      - tempo
-      - prometheus
-      - loki
+      tempo:
+        condition: service_started
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
 
 volumes:
   db_data:
     name: mysql_api_project_db_data
   grafana_data:
     name: mysql_api_project_grafana_data
+  otel_data:
+    name: mysql_api_project_otel_data
+  tempo_data:
+    name: mysql_api_project_tempo_data
+  loki_data:
+    name: mysql_api_project_loki_data
