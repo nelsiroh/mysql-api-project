@@ -13,9 +13,10 @@ ingester:
   max_block_bytes: 1048576
   max_block_duration: 5m
 
-compactor:
-  compaction:
-    block_retention: 72h
+# Not needed for simple demonstrator (local, monolithic)
+# compactor:
+#   compaction:
+#     block_retention: 72h
 
 storage:
   trace:
@@ -25,7 +26,8 @@ storage:
     wal:
       path: /tmp/tempo/wal
 
-overrides:
-  defaults:
-    metrics_generator:
-      processors: []
+# Not needed for simple demonstrator (local, monolithic)
+# overrides:
+#   defaults:
+#     metrics_generator:
+#       processors: []

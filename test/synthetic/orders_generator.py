@@ -53,8 +53,8 @@ def fetch_ids(cursor, query, key="id"):
 
 
 def fetch_coffee_map(cursor):
-    cursor.execute("SELECT id, price FROM coffee_table")
-    return {row["id"]: Decimal(str(row["price"])) for row in cursor.fetchall()}
+    cursor.execute("SELECT id, unit_price FROM coffee_table")
+    return {row["id"]: Decimal(str(row["unit_price"])) for row in cursor.fetchall()}
 
 
 # -----------------------------
