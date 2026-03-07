@@ -46,7 +46,7 @@ services:
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     restart: always
-    # platform: linux/amd64
+    platform: linux/amd64
     environment:
       PMA_HOST: db
       PMA_USER: root
