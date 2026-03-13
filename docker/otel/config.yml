@@ -28,13 +28,13 @@ exporters:
     endpoint: "0.0.0.0:8889"
 
   # ---- Logs → Loki ----
-  loki:
-    endpoint: http://loki:3100/loki/api/v1/push
-    sending_queue:
-      enabled: true
-      storage: file_storage
-    retry_on_failure:
-      enabled: true
+  # loki:
+  #   endpoint: http://loki:3100/loki/api/v1/push
+  #   sending_queue:
+  #     enabled: true
+  #     storage: file_storage
+  #   retry_on_failure:
+  #     enabled: true
 
 service:
   extensions: [file_storage]
@@ -50,7 +50,7 @@ service:
       processors: [batch]
       exporters: [prometheus]
 
-    logs:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [loki]
+    # logs:
+    #   receivers: [otlp]
+    #   processors: [batch]
+    #   exporters: [loki]
