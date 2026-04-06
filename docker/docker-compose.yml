@@ -23,8 +23,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      otel-collector:
-        condition: service_started
+      # otel-collector:
+      #   condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 3306
@@ -108,6 +108,7 @@ services:
       - "3001:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
       prometheus:
         condition: service_started
