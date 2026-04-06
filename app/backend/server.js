@@ -1,22 +1,35 @@
-import tracer from 'dd-trace';
+// import tracer from 'dd-trace';
 
-tracer.init({
-  service: process.env.DD_SERVICE || 'coffee-api',
-  env: process.env.DD_ENV || 'local',
-  version: process.env.DD_VERSION || 'dev',
-  logInjection: true,
-});
+// tracer.init({
+//   service: process.env.DD_SERVICE || 'coffee-api',
+//   env: process.env.DD_ENV || 'local',
+//   version: process.env.DD_VERSION || 'dev',
+//   logInjection: true,
+// });
 
 import express from 'express';
 import pool from './db.js';
 import crypto from 'crypto';
+import client from 'prom-client';
 
 const app = express();
 app.use(express.json());
 
+client.collectDefaultMetrics();
+
 // GET health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// GET Prometheus metrics
+app.get("/metrics", async (req, res) => {
+  try {
+    res.set("Content-Type", client.register.contentType);
+    res.end(await client.register.metrics());
+  } catch (err) {
+    res.status(500).end(err.message);
+  }
 });
 
 // GET coffee records
