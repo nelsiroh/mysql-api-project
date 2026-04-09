@@ -1,3 +1,4 @@
+// DataDog Trace
 // import tracer from 'dd-trace';
 
 // tracer.init({
@@ -10,12 +11,13 @@
 import express from 'express';
 import pool from './db.js';
 import crypto from 'crypto';
-import client from 'prom-client';
+import { metricsHandler } from './telemetry/registry.js';
+import { orderMetrics } from './telemetry/orderMetrics.js';
+import { metricsMiddleware } from './telemetry/middleware.js';
 
 const app = express();
+app.use(metricsMiddleware());
 app.use(express.json());
-
-client.collectDefaultMetrics();
 
 // GET health check
 app.get('/health', (req, res) => {
@@ -23,14 +25,7 @@ app.get('/health', (req, res) => {
 });
 
 // GET Prometheus metrics
-app.get("/metrics", async (req, res) => {
-  try {
-    res.set("Content-Type", client.register.contentType);
-    res.end(await client.register.metrics());
-  } catch (err) {
-    res.status(500).end(err.message);
-  }
-});
+app.get('/metrics', metricsHandler);
 
 // GET coffee records
 app.get('/coffees', async (req, res) => {
@@ -58,30 +53,44 @@ app.get('/users', async (req, res) => {
 });
 
 // Rollback handler
-async function rollbackAndRespond(conn, res, statusCode, payload) {
+async function rollbackAndRespond(conn, res, statusCode, payload, reason = 'unknown') {
+  orderMetrics.recordRollback(reason);
   try { await conn.rollback(); } catch (_) {}
   return res.status(statusCode).json(payload);
 }
 
 // POST coffee transaction
 app.post('/order', async (req, res) => {
+  const stopOrderTimer = orderMetrics.startOrderCreateTimer();
   const errors = [];
+  let conn;
 
   const customer_id = Number(req.body?.customer_id);
   const coffee_id = Number(req.body?.coffee_id);
   const quantity = Number(req.body?.quantity);
 
-  if (!Number.isInteger(customer_id)) errors.push({ field: 'customer_id', message: 'must be an integer' });
-  if (!Number.isInteger(coffee_id)) errors.push({ field: 'coffee_id', message: 'must be an integer' });
-  if (!Number.isInteger(quantity) || quantity <= 0) {
-    errors.push({ field: 'quantity', message: 'must be a positive integer' });
+  if (!Number.isInteger(customer_id)) {
+    errors.push({ field: 'customer_id', message: 'must be an integer' });
+    orderMetrics.recordValidationFailure('customer_id');
   }
 
-  if (errors.length) return res.status(400).json({ errors });
+  if (!Number.isInteger(coffee_id)) {
+    errors.push({ field: 'coffee_id', message: 'must be an integer' });
+    orderMetrics.recordValidationFailure('coffee_id');
+  }
 
-  const conn = await pool.getConnection();
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    errors.push({ field: 'quantity', message: 'must be a positive integer' });
+    orderMetrics.recordValidationFailure('quantity');
+  }
+
+  if (errors.length) {
+    stopOrderTimer('validation_error');
+    return res.status(400).json({ errors });
+  }
 
   try {
+    conn = await pool.getConnection();
     await conn.beginTransaction();
 
     // Validate customer exists
@@ -90,7 +99,9 @@ app.post('/order', async (req, res) => {
       [customer_id]
     );
     if (custRows.length === 0) {
-      return await rollbackAndRespond(conn, res, 404, { error: 'customer not found' });
+      orderMetrics.recordCreateFailure('customer_lookup', 'customer_not_found');
+      stopOrderTimer('customer_not_found');
+      return await rollbackAndRespond(conn, res, 404, { error: 'customer not found' }, 'customer_not_found');
     }
 
     // Validate coffee exists and fetch current unit_price
@@ -99,29 +110,35 @@ app.post('/order', async (req, res) => {
       [coffee_id]
     );
     if (coffeeRows.length === 0) {
-      return await rollbackAndRespond(conn, res, 404, { error: 'coffee not found' });
+      orderMetrics.recordCreateFailure('coffee_lookup', 'coffee_not_found');
+      stopOrderTimer('coffee_not_found');
+      return await rollbackAndRespond(conn, res, 404, { error: 'coffee not found' }, 'coffee_not_found');
     }
 
     const coffee = coffeeRows[0];
     const unit_price = toMoney(coffee.unit_price);
 
     if (!Number.isFinite(unit_price) || unit_price < 0) {
-      return await rollbackAndRespond(conn, res, 500, { error: 'invalid unit_price in coffee_table' });
+      orderMetrics.recordCreateFailure('price_validation', 'invalid_unit_price');
+      stopOrderTimer('invalid_unit_price');
+      return await rollbackAndRespond(conn, res, 500, { error: 'invalid unit_price in coffee_table' }, 'invalid_unit_price');
     }
 
     const line_total = round2(unit_price * quantity);
 
-    // Validate tax rate: store as runtime config
+    // Validate TAX_RATE config.
     const taxRate = Number(process.env.TAX_RATE ?? 0.0825);
     if (!Number.isFinite(taxRate) || taxRate < 0) {
-      return await rollbackAndRespond(conn, res, 500, { error: 'invalid TAX_RATE configuration' });
+      orderMetrics.recordCreateFailure('tax_configuration', 'invalid_tax_rate');
+      stopOrderTimer('invalid_tax_rate');
+      return await rollbackAndRespond(conn, res, 500, { error: 'invalid TAX_RATE configuration' }, 'invalid_tax_rate');
     }
 
     const subtotal = round2(line_total);
     const tax = round2(subtotal * taxRate);
     const grand_total = round2(subtotal + tax);
 
-    // Create order shell (retry on  order_number collision)
+    // Retry order insert on order_number collision.
     const maxAttempts = 3;
     let order_id;
     let order_number;
@@ -141,7 +158,7 @@ app.post('/order', async (req, res) => {
         order_id = orderResult.insertId;
         break;
       } catch (e) {
-        // MySQL duplicate key: ER_DUP_ENTRY (errno 1062)
+        // MySQL duplicate key: ER_DUP_ENTRY (errno 1062).
         const isDup = e?.errno === 1062 || e?.code === 'ER_DUP_ENTRY';
         if (isDup && attempt < maxAttempts) continue;
         throw e;
@@ -152,7 +169,7 @@ app.post('/order', async (req, res) => {
       throw new Error('failed to generate unique order_number after retries');
     }
 
-    // Create order item (price snapshot)
+    // Snapshot unit_price at order time.
     await conn.query(
       `
         INSERT INTO order_items (order_id, coffee_id, quantity, unit_price, line_total)
@@ -162,6 +179,8 @@ app.post('/order', async (req, res) => {
     );
 
     await conn.commit();
+    orderMetrics.recordOrderCreated('PENDING');
+    stopOrderTimer('success');
 
     return res.status(201).json({
       id: order_id,
@@ -183,10 +202,15 @@ app.post('/order', async (req, res) => {
       tax_rate: taxRate,
     });
   } catch (err) {
-    try { await conn.rollback(); } catch (_) {}
+    orderMetrics.recordCreateFailure('order_create', err?.code || 'unhandled_error');
+    orderMetrics.recordRollback(err?.code || 'unhandled_error');
+    stopOrderTimer('error');
+    if (conn) {
+      try { await conn.rollback(); } catch (_) {}
+    }
     return res.status(500).json({ error: err.message });
   } finally {
-    conn.release();
+    if (conn) conn.release();
   }
 });
 
@@ -195,7 +219,15 @@ app.patch('/order/:id/status', async (req, res) => {
   const order_id = Number(req.params.id);
   const newStatus = req.body?.status;
 
-  const validStatuses = ['PENDING', 'PAID', 'FULFILLED', 'CANCELLED', 'REFUNDED'];
+  const allowedTransitions = {
+    PENDING: ['PAID', 'CANCELLED'],
+    PAID: ['FULFILLED', 'REFUNDED'],
+    FULFILLED: ['REFUNDED'],
+    CANCELLED: [],
+    REFUNDED: [],
+  };
+
+  const validStatuses = Object.keys(allowedTransitions);
 
   if (!Number.isInteger(order_id)) {
     return res.status(400).json({ error: 'invalid order id' });
@@ -206,17 +238,45 @@ app.patch('/order/:id/status', async (req, res) => {
   }
 
   try {
-    const [result] = await pool.query(
-      `UPDATE orders SET status = ? WHERE id = ? AND status <> ?`,
-      [newStatus, order_id, newStatus]
+    const [existingRows] = await pool.query(
+      `SELECT id, status, updated_at FROM orders WHERE id = ?`,
+      [order_id]
     );
 
-    if (result.affectedRows === 0) {
-      // Either not found, or already in that status.
-      const [rows] = await pool.query(`SELECT id, status, updated_at FROM orders WHERE id = ?`, [order_id]);
-      if (rows.length === 0) return res.status(404).json({ error: 'order not found' });
-      return res.json({ id: rows[0].id, status: rows[0].status, updated_at: rows[0].updated_at });
+    if (existingRows.length === 0) {
+      orderMetrics.recordStatusTransition('missing', newStatus, 'not_found');
+      return res.status(404).json({ error: 'order not found' });
     }
+
+    const existingOrder = existingRows[0];
+
+    if (existingOrder.status === newStatus) {
+      orderMetrics.recordStatusTransition(existingOrder.status, newStatus, 'noop');
+      return res.json({
+        id: existingOrder.id,
+        status: existingOrder.status,
+        updated_at: existingOrder.updated_at,
+      });
+    }
+
+    if (!allowedTransitions[existingOrder.status].includes(newStatus)) {
+      orderMetrics.recordStatusTransition(existingOrder.status, newStatus, 'invalid_transition');
+      return res.status(409).json({
+        error: `cannot transition order from ${existingOrder.status} to ${newStatus}`
+      });
+    }
+
+    const [updateResult] = await pool.query(
+      `UPDATE orders SET status = ? WHERE id = ? AND status = ?`,
+      [newStatus, order_id, existingOrder.status]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      orderMetrics.recordStatusTransition(existingOrder.status, newStatus, 'conflict');
+      return res.status(409).json({ error: 'order status changed during update' });
+    }
+
+    orderMetrics.recordStatusTransition(existingOrder.status, newStatus, 'updated');
 
     const [rows] = await pool.query(`SELECT id, status, updated_at FROM orders WHERE id = ?`, [order_id]);
     return res.json(rows[0]);
@@ -233,7 +293,7 @@ function round2(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
 
-// Normalize MySQL DECIMAL values into JavaScript numbers. 
+// Normalize MySQL DECIMAL values into JavaScript numbers.
 // mysql2 often returns DECIMAL columns as strings to preserve precision. This helper ensures consistent numeric behavior in calculations.
 function toMoney(v) {
   // mysql2 may return DECIMAL as string; normalize to number
