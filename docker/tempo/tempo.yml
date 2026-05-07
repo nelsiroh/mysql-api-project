@@ -5,8 +5,10 @@ distributor:
   receivers:
     otlp:
       protocols:
-        http:
         grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
 
 ingester:
   trace_idle_period: 10s
@@ -14,9 +16,9 @@ ingester:
   max_block_duration: 5m
 
 # Not needed for simple demonstrator (local, monolithic)
-# compactor:
-#   compaction:
-#     block_retention: 72h
+compactor:
+  compaction:
+    block_retention: 24h
 
 storage:
   trace:
@@ -27,7 +29,7 @@ storage:
       path: /tmp/tempo/wal
 
 # Not needed for simple demonstrator (local, monolithic)
-# overrides:
-#   defaults:
-#     metrics_generator:
-#       processors: []
+overrides:
+  defaults:
+    metrics_generator:
+      processors: []
