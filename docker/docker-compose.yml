@@ -95,12 +95,31 @@ services:
   loki:
     image: grafana/loki:3.6.7
     profiles: ["loki"]
+    user: "0:0"
     command: ["-config.file=/etc/loki/loki.yml"]
     volumes:
       - ./loki/loki.yml:/etc/loki/loki.yml:ro
       - loki_data:/tmp/loki
     ports:
       - "3100:3100"
+
+  alloy:
+    image: grafana/alloy:v1.16.0
+    profiles: ["loki"]
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy_data:/var/lib/alloy/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "12345:12345"
+    depends_on:
+      loki:
+        condition: service_started
 
   grafana:
     image: grafana/grafana:12.4.1
@@ -131,3 +150,5 @@ volumes:
     name: mysql_api_project_tempo_data
   loki_data:
     name: mysql_api_project_loki_data
+  alloy_data:
+    name: mysql_api_project_alloy_data
