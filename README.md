@@ -5,8 +5,9 @@ Modeling**
 
 A transactional order service built with **Node.js (Express)** and
 **MySQL**, validated under synthetic load, and instrumented first with
-**Datadog APM**, now refactored to a **Grafana + OpenTelemetry (LGTM)
-observability stack**.
+**Datadog APM**, now refactored to a **Grafana LGTM observability stack**
+using OpenTelemetry, Prometheus metrics, and Grafana Alloy for Docker log
+collection.
 
 ---
 
@@ -24,8 +25,10 @@ This service simulates a production-style commerce backend:
 -   Load validation via Locust
 
 The system was initially validated using **Datadog APM** and is now
-being migrated to an **OpenTelemetry-based LGTM stack (Loki, Grafana,
-Tempo, Prometheus)** for vendor-neutral observability.
+running on a self-hosted **LGTM stack (Loki, Grafana, Tempo, Prometheus)**.
+The current local stack sends traces through the OpenTelemetry Collector,
+exposes application metrics for Prometheus, and uses **Grafana Alloy** to
+collect Docker container logs for Loki when the `loki` profile is enabled.
 
 ---
 
@@ -48,6 +51,7 @@ This phase confirmed:
 -   Deterministic lifecycle transitions
 
 ### Phase 1 — Architecture
+
 ```mermaid
 %%{init: {'theme':'neutral','themeVariables':{'fontSize':'16px'}}}%%
 flowchart TD
@@ -59,18 +63,20 @@ G["Datadog Agent"]
 
 L --> A
 A --> D
-D --> G
+A --> G
 ```
 
 ### Phase 2 -- LGTM Stack
 
-Refactoring to:
+Current observability components:
 
 -   **OpenTelemetry SDK (Node)**
--   **OpenTelemetry Collector**
+-   **OpenTelemetry Collector** for OTLP trace ingest and Tempo export
+-   **prom-client** metrics exposed at `/metrics`
 -   **Tempo** (distributed tracing backend)
 -   **Prometheus** (metrics)
 -   **Loki** (logs)
+-   **Grafana Alloy** (Docker log collection and Loki forwarding)
 -   **Grafana** (visualization layer)
 
 Goals of this pivot:
@@ -78,30 +84,33 @@ Goals of this pivot:
 -   Vendor-neutral instrumentation
 -   Standards-based telemetry (OTLP)
 -   Self-hosted observability stack
--   Explicit control over trace/metric/log pipelines
+-   Explicit control over trace, metric, and log pipelines
 -   Demonstration of modern cloud-native observability architecture
 
 ### Phase 2 — LGTM Stack Architecture
+
 ```mermaid
 %%{init: {'theme':'neutral','themeVariables':{'fontSize':'16px'}}}%%
 flowchart TD
 
 L["Load Generator (Locust)"]
-A["Express API (Node.js)<br/>(OpenTelemetry SDK)"]
+A["Express API (Node.js)<br/>(OpenTelemetry SDK + prom-client)"]
 D["MySQL (InnoDB)"]
 C["OpenTelemetry Collector (OTLP)"]
 T["Tempo (Traces)"]
 M["Prometheus (Metrics)"]
 K["Loki (Logs)"]
+Y["Grafana Alloy<br/>(Docker Logs)"]
 G["Grafana (Unified Visualization)"]
 
 L --> A
 A --> D
-D --> C
+A -->|OTLP traces| C
+M -->|scrapes /metrics| A
+M -->|scrapes collector metrics| C
+Y -->|pushes logs| K
 
 C --> T
-C --> M
-C --> K
 
 T --> G
 M --> G
@@ -142,6 +151,7 @@ real-world commerce behavior.
   Method   Endpoint            Description
   -------- ------------------- ----------------------------
   GET      /health             Health check
+  GET      /metrics            Prometheus metrics
   GET      /coffees            Product catalog
   GET      /users              Customer list
   POST     /order              Create transactional order
@@ -197,17 +207,29 @@ Where:
 
 ## Local Development
 
-Start full stack (DB + API + LGTM stack):
+Start the DB, API, OpenTelemetry Collector, Tempo, Prometheus, and Grafana:
 
-    docker compose up --build
+    docker compose -f docker/docker-compose.yml up --build
+
+Start the same stack with Loki and Grafana Alloy log collection:
+
+    docker compose -f docker/docker-compose.yml --profile loki up --build
 
 Health check:
 
     curl http://localhost:8080/health
 
+Metrics endpoint:
+
+    curl http://localhost:8080/metrics
+
 Grafana:
 
     http://localhost:3001
+
+Grafana Alloy UI (when the `loki` profile is enabled):
+
+    http://localhost:12345
 
 ---
 
@@ -228,7 +250,7 @@ Reset test data:
 
 Or reset container + volume:
 
-    docker compose down -v
+    docker compose -f docker/docker-compose.yml down -v
 
 ---
 

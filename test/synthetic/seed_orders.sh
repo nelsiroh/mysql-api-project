@@ -16,4 +16,4 @@ export DB_HOST DB_USER DB_PASSWORD DB_NAME NUM_ORDERS TAX_RATE DB_PORT
 
 echo "Generating ${NUM_ORDERS} orders into ${DB_NAME}..."
 
-python "${SCRIPT_DIR}/orders_generator.py"
+python3 "${SCRIPT_DIR}/orders_generator.py"
