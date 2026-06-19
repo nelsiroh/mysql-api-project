@@ -74,7 +74,8 @@ Current observability components:
 -   **OpenTelemetry Collector** for OTLP trace ingest and Tempo export
 -   **prom-client** metrics exposed at `/metrics`
 -   **Tempo** (distributed tracing backend)
--   **Prometheus** (metrics)
+-   **Prometheus** (metrics scraping)
+-   **Mimir** (metrics backend)
 -   **Loki** (logs)
 -   **Grafana Alloy** (Docker log collection and Loki forwarding)
 -   **Grafana** (visualization layer)
@@ -98,7 +99,8 @@ A["Express API (Node.js)<br/>(OpenTelemetry SDK + prom-client)"]
 D["MySQL (InnoDB)"]
 C["OpenTelemetry Collector (OTLP)"]
 T["Tempo (Traces)"]
-M["Prometheus (Metrics)"]
+P["Prometheus<br/>(Metrics Scraper)"]
+M["Mimir<br/>(Metrics Backend)"]
 K["Loki (Logs)"]
 Y["Grafana Alloy<br/>(Docker Logs)"]
 G["Grafana (Unified Visualization)"]
@@ -106,8 +108,9 @@ G["Grafana (Unified Visualization)"]
 L --> A
 A --> D
 A -->|OTLP traces| C
-M -->|scrapes /metrics| A
-M -->|scrapes collector metrics| C
+P -->|scrapes /metrics| A
+P -->|scrapes collector metrics| C
+P -->|remote write metrics| M
 Y -->|pushes logs| K
 
 C --> T
@@ -207,13 +210,38 @@ Where:
 
 ## Local Development
 
-Start the DB, API, OpenTelemetry Collector, Tempo, Prometheus, and Grafana:
+The local stack lives under [docker/](docker/) and is composed with Docker Compose.
+
+Core services:
+
+-   MySQL
+-   Backend API
+-   OpenTelemetry Collector
+-   Tempo
+-   Prometheus
+-   Mimir
+-   Grafana
+
+Optional LGTM log services:
+
+-   Loki
+-   Grafana Alloy
+
+Start the core stack:
 
     docker compose -f docker/docker-compose.yml up --build
 
 Start the same stack with Loki and Grafana Alloy log collection:
 
     docker compose -f docker/docker-compose.yml --profile loki up --build
+
+If you prefer the profile to be automatic, set `COMPOSE_PROFILES=loki` in [docker/.env](docker/.env) and run `docker compose up` from the [docker/](docker/) directory.
+
+Stop and clean up the full stack:
+
+    docker compose -f docker/docker-compose.yml down
+
+If the `loki` profile is enabled via CLI or `.env`, the same `down` command will remove Loki and Alloy as well.
 
 Health check:
 
@@ -230,6 +258,32 @@ Grafana:
 Grafana Alloy UI (when the `loki` profile is enabled):
 
     http://localhost:12345
+
+Grafana provisioning files:
+
+-   [docker/grafana/provisioning/datasources/prometheus.yml](docker/grafana/provisioning/datasources/prometheus.yml) provisions Prometheus, Tempo, and Loki.
+-   [docker/grafana/provisioning/datasources/mimir.yml](docker/grafana/provisioning/datasources/mimir.yml) provisions the separate Mimir datasource.
+
+Datasource behavior:
+
+-   Prometheus is the default Grafana datasource.
+-   Mimir is kept separate so it can use `httpMethod: POST` and its own query interval.
+
+Mimir configuration:
+
+-   [docker/mimir/config.yml](docker/mimir/config.yml) is a single-binary local config using filesystem storage.
+-   The config keeps ring and replication settings on the component-specific blocks, not under `common`.
+
+Prometheus configuration:
+
+-   [docker/prometheus/prometheus.yml](docker/prometheus/prometheus.yml) remote-writes to Mimir.
+-   It also scrapes Prometheus itself, the OpenTelemetry Collector, the backend, and Mimir's operational metrics.
+-   External labels are set for local Docker attribution.
+
+Compose cleanup note:
+
+-   Loki and Alloy are controlled by the `loki` profile.
+-   To avoid orphaned containers, use the same profile setting for both `up` and `down`.
 
 ---
 
